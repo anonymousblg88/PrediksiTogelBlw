@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #1A0000, #800000, #1A0000);
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      padding: 20px;
+      max-width: 1000px;
+    }
+    .card {
+      background: linear-gradient(to bottom right, #800000, #b30000);
+      border-radius: 15px;
+      padding: 15px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4), 0 0 15px 5px rgba(255, 255, 255, 0.7);
+      transition: box-shadow 0.3s ease;
+      margin-bottom: 30px;
+    }
+    .card:hover {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4), 0 0 20px 10px rgba(255, 255, 255, 0.9);
+    }
+    .title-container {
+      background-color: #000;
+      padding: 5px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    .title {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 5px;
+      text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000, 0 0 30px #ff0000, 0 0 40px #ff0000;
+    }
+    .date {
+      font-size: 13px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+    }
+    .date img {
+      width: 14px;
+      height: 14px;
+    }
+    .periode {
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .balls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .ball {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      position: relative;
+      font-weight: bold;
+      font-size: 16px;
+      animation: spinEffect 0.3s ease;
+    }
+    .ball::before {
+      content: "";
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      right: 4px;
+      bottom: 4px;
+      background: white;
+      border-radius: 50%;
+      z-index: 1;
+    }
+    .ball span {
+      position: relative;
+      z-index: 2;
+      color: black;
+      line-height: 40px;
+    }
+    @keyframes spinEffect {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .btn {
+      background: #ff3333;
+      color: white;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .mode-label {
+      margin-top: 8px;
+      font-size: 12px;
+      background-color: #fff;
+      color: #b30000;
+      padding: 4px 8px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+    /* Tambahkan CSS tambahan di sini jika diperlukan */
+    overflow: auto {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    #starCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+    }
+    #menuContainer {
+  position: fixed;
+  left: 20px;
+  bottom: 30px;
+  z-index: 9999;
+}
+
+#mainMenuBtn {
+  background: #ff3d00;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  transition: background 0.3s ease;
+}
+
+#mainMenuBtn:hover {
+  background: #e53900;
+}
+
+#floatingMenu {
+  display: none;
+  flex-direction: column;
+  margin-top: 10px;
+  background: #2c2c2c;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.6);
+}
+
+#floatingMenu a {
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin: 5px 0;
+  background: #444;
+  transition: background 0.3s;
+}
+
+#floatingMenu a:hover {
+  background: #666;
+}
+
+  </style>
+  <script>
+    const modes = ["FULL", "DISKON", "BOLAK BALIK"];
+    const billiardColors = [
+      "#f44336", // 0 - merah
+      "#4caf50", // 1 - hijau
+      "#2196f3", // 2 - biru
+      "#ffeb3b", // 3 - kuning
+      "#ff9800", // 4 - oranye
+      "#9c27b0", // 5 - ungu
+      "#795548", // 6 - coklat
+      "#009688", // 7 - teal
+      "#e91e63", // 8 - pink
+      "#607d8b"  // 9 - abu tua
+    ];
+
+    let spinSound;
+
+    function spinBalls(cardId) {
+      const container = document.getElementById(cardId);
+      const balls = container.querySelectorAll(".ball");
+      const modeLabel = container.querySelector(".mode-label");
+
+      if (spinSound) {
+        spinSound.currentTime = 0;
+        spinSound.play();
+      }
+
+      const currentMode = modeLabel.textContent;
+      const nextIndex = (modes.indexOf(currentMode) + 1) % modes.length;
+      const nextMode = modes[nextIndex];
+      modeLabel.textContent = nextMode;
+
+      let count = 0;
+      const interval = setInterval(() => {
+        balls.forEach(ball => {
+          const randomDigit = Math.floor(Math.random() * 10);
+          ball.innerHTML = `<span>${randomDigit}</span>`;
+          ball.style.backgroundColor = billiardColors[randomDigit];
+        });
+        count++;
+        if (count >= 10) clearInterval(interval);
+      }, 80);
+    }
+
+    function formatDateFull(date) {
+      const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+      const dayName = days[date.getDay()];
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${dayName}, ${dd}-${mm}-${yyyy}`;
+    }
+
+    function updateDates() {
+      const today = new Date();
+      const todayStr = formatDateFull(today);
+      const dateElements = document.querySelectorAll(".date span");
+      dateElements.forEach(el => {
+        el.textContent = todayStr;
+      });
+    }
+
+    window.onload = () => {
+      updateDates();
+      spinSound = new Audio("https://www.soundjay.com/misc/sounds/spin-wheel-1.mp3");
+
+      document.querySelectorAll(".card").forEach(card => {
+        const balls = card.querySelectorAll(".ball");
+        balls.forEach((ball, i) => {
+          const val = parseInt(ball.textContent) || i;
+          ball.innerHTML = `<span>${val}</span>`;
+          ball.style.backgroundColor = billiardColors[val];
+        });
+      });
+    };
+  </script>
+</head>
+<body>
+  <!-- Logo di bagian atas -->
+  <div class="header">
+    <img src="https://i.ibb.co/rf3C7rYG/BLW-LOGO.png" alt="Logo" style="width: 200px; height: auto; margin-top: 0px;">
+    <h1 style="
+    font-size: 30px;
+    margin: 0px 0 0px;
+    color: #fffff;
+    text-shadow: 0 0 10px #f39c12, 0 0 20px #ff0000;
+    font-family: Verana, sans-serif;
+  ">
+    📌PREDIKSI TOGEL SETIAP HARI📌
+  </h1>
+</div>
+
+<!-- Floating Button & Menu -->
+<div id="menuContainer">
+  <button id="mainMenuBtn">☰</button>
+  <div id="floatingMenu">
+    <a href="https://belegendwin1.com" target="_blank">🔗 Link Login Vip</a>
+    <a href="https://script.google.com/macros/s/AKfycbx40MUo68cqwU0RagdJiSfLURgnWF_q_a2_pUVbGve4YO53E_I3fz_dxkNlR4UwKigL/exec" target="_blank">🎮 Link Pola</a>
+    <a href="https://script.google.com/macros/s/AKfycbxVWApeHPtCuDRIBXAiCycjdvtRj1jZjd-fpj4ttODpkd5vUeft3Nq5yXZdKM_XIpvpIA/exec" target="_blank">📢 Link Flip Gambar</a>
+  </div>
+</div>
+
+<!-- Canvas untuk efek bintang -->
+  <canvas id="starCanvas"></canvas>
+
+  <!-- JavaScript untuk efek bintang -->
+  <script>
+    const canvas = document.getElementById('starCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    const groupCount = 20;
+    const groups = [];
+
+    function random(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function createStar(x, y, radius, points = 5) {
+      const step = Math.PI / points;
+      ctx.beginPath();
+      for (let i = 0; i < 2 * points; i++) {
+        const angle = i * step;
+        const r = i % 2 === 0 ? radius : radius / 2;
+        ctx.lineTo(x + r * Math.cos(angle), y + r * Math.sin(angle));
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    for (let i = 0; i < groupCount; i++) {
+      const starCount = Math.floor(random(10, 20));
+      const stars = [];
+
+      const baseX = random(0, width);
+      const baseY = random(0, height);
+
+      for (let j = 0; j < starCount; j++) {
+        stars.push({
+          x: baseX + random(-50, 50),
+          y: baseY + random(-50, 50),
+          dx: random(-0.3, 0.3),
+          dy: random(-0.3, 0.3),
+          size: random(3, 6)
+        });
+      }
+
+      groups.push(stars);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, width, height);
+
+      groups.forEach(stars => {
+        stars.forEach((star, idx) => {
+          star.x += star.dx;
+          star.y += star.dy;
+
+          if (star.x < 0 || star.x > width) star.dx *= -1;
+          if (star.y < 0 || star.y > height) star.dy *= -1;
+
+          ctx.fillStyle = 'rgba(255, 45, 33, 0.9)';
+          createStar(star.x, star.y, star.size, 5);
+        });
+
+        for (let i = 0; i < stars.length; i++) {
+          for (let j = i + 1; j < stars.length; j++) {
+            const a = stars[i];
+            const b = stars[j];
+            const dist = Math.hypot(a.x - b.x, a.y - b.y);
+            if (dist < 100) {
+              ctx.strokeStyle = 'rgba(107, 107, 127, 0.4)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+            }
+          }
+        }
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+    
+  const mainMenuBtn = document.getElementById('mainMenuBtn');
+  const floatingMenu = document.getElementById('floatingMenu');
+
+  mainMenuBtn.addEventListener('click', () => {
+    floatingMenu.style.display = floatingMenu.style.display === 'flex' ? 'none' : 'flex';
+  });
+
+
+  </script>
+
+  <div class="container">
+    <div class="grid">
+      <!-- Card 1 -->
+      <div class="card" id="card1">
+        <div class="title-container">
+          <div class="title">📌TOTO MACAU</div>
+        </div>
+        <div class="date"><img src="https://cdn-icons-png.flaticon.com/512/747/747310.png" /><span>Tanggal</span></div>
+        <div class="periode">🔳PREDIKSI TOTO MACAU</div>
+        <div class="balls">
+          <div class="ball"><span>2</span></div>
+          <div class="ball"><span>5</span></div>
+          <div class="ball"><span>5</span></div>
+          <div class="ball"><span>8</span></div>
+        </div>
+        <button class="btn" onclick="spinBalls('card1')">SPIN</button>
+        <div class="mode-label">FULL</div>
+      </div>
+
+       <!-- Card 2 -->
+      <div class="card" id="card2">
+        <div class="title-container">
+          <div class="title">📌KINGKONG POOLS</div>
+        </div>
+        <div class="date"><img src="https://cdn-icons-png.flaticon.com/512/747/747310.png" /><span>Tanggal</span></div>
+        <div class="periode">🔳PREDIKSI KINGKONG POOLS</div>
+        <div class="balls">
+          <div class="ball"><span>0</span></div>
+          <div class="ball"><span>1</span></div>
+          <div class="ball"><span>9</span></div>
+          <div class="ball"><span>4</span></div>
+        </div>
+        <button class="btn" onclick="spinBalls('card2')">SPIN</button>
+        <div class="mode-label">FULL</div>
+      </div>
+      <!-- Card 3 -->
+      <div class="card" id="card3">
+        <div class="title-container">
+          <div class="title">📌HONGKONG LOTTO</div>
+        </div>
+        <div class="date"><img src="https://cdn-icons-png.flaticon.com/512/747/747310.png" /><span>Tanggal</span></div>
+        <div class="periode">🔳PREDIKSI HONGKONG LOTTO</div>
+        <div class="balls">
+          <div class="ball"><span>6</span></div>
+          <div class="ball"><span>9</span></div>
+          <div class="ball"><span>9</span></div>
+          <div class="ball"><span>6</span></div>
+        </div>
+        <button class="btn" onclick="spinBalls('card3')">SPIN</button>
+        <div class="mode-label">FULL</div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="card" id="card4">
+        <div class="title-container">
+          <div class="title">📌SIDNEY LOTTO</div>
+        </div>
+        <div class="date"><img src="https://cdn-icons-png.flaticon.com/512/747/747310.png" /><span>Tanggal</span></div>
+        <div class="periode">🔳PREDIKSI SIDNEY LOTTO</div>
+        <div class="balls">
+          <div class="ball"><span>2</span></div>
+          <div class="ball"><span>1</span></div>
+          <div class="ball"><span>0</span></div>
+          <div class="ball"><span>3</span></div>
+        </div>
+        <button class="btn" onclick="spinBalls('card4')">SPIN</button>
+        <div class="mode-label">FULL</div>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="card" id="card5">
+        <div class="title-container">
+          <div class="title">📌SINGAPORE</div>
+        </div>
+        <div class="date"><img src="https://cdn-icons-png.flaticon.com/512/747/747310.png" /><span>Tanggal</span></div>
+        <div class="periode">🔳PREDIKSI SINGAPORE</div>
+        <div class="balls">
+          <div class="ball"><span>2</span></div>
+          <div class="ball"><span>5</span></div>
+          <div class="ball"><span>5</span></div>
+          <div class="ball"><span>8</span></div>
+        </div>
+        <button class="btn" onclick="spinBalls('card5')">SPIN</button>
+        <div class="mode-label">FULL</div>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="card" id="card6">
+        <div class="title-container">
+          <div class="title">📌JOWO POOLS</div>
+        </div>
+        <div class="date"><img src="https://cdn-icons-png.flaticon.com/512/747/747310.png" /><span>Tanggal</span></div>
+        <div class="periode">🔳PREDIKSI JOWO POOLS</div>
+        <div class="balls">
+          <div class="ball"><span>0</span></div>
+          <div class="ball"><span>1</span></div>
+          <div class="ball"><span>9</span></div>
+          <div class="ball"><span>4</span></div>
+        </div>
+        <button class="btn" onclick="spinBalls('card6')">SPIN</button>
+        <div class="mode-label">FULL</div>
+      </div>
+
+      <!-- Card 7 -->
+      <div class="card" id="card7">
+        <div class="title-container">
+          <div class="title">📌JAKARTA POOLS</div>
+        </div>
+        <div class="date"><img src="https://cdn-icons-png.flaticon.com/512/747/747310.png" /><span>Tanggal</span></div>
+        <div class="periode">🔳PREDIKSI JAKARTA POOLS</div>
+        <div class="balls">
+          <div class="ball"><span>6</span></div>
+          <div class="ball"><span>9</span></div>
+          <div class="ball"><span>9</span></div>
+          <div class="ball"><span>6</span></div>
+        </div>
+        <button class="btn" onclick="spinBalls('card7')">SPIN</button>
+        <div class="mode-label">FULL</div>
+      </div>
+
+<!-- LiveChat -->
+    <script>
+      window.__lc = window.__lc || {};
+      window.__lc.license = 11778162;
+      window.__lc.integration_name = "manual_channels";
+      window.__lc.product_name = "livechat";
+      (function(n, t, c) {
+        function i(n) {
+          return e._h ? e._h.apply(null, n) : e._q.push(n)
+        }
+        var e = {
+          _q: [], _h: null, _v: "2.0",
+          on: function() { i(["on", c.call(arguments)]) },
+          once: function() { i(["once", c.call(arguments)]) },
+          off: function() { i(["off", c.call(arguments)]) },
+          get: function() { if (!e._h) throw new Error("[LiveChatWidget] You can't use getters before load."); return i(["get", c.call(arguments)]) },
+          call: function() { i(["call", c.call(arguments)]) },
+          init: function() {
+            var n = t.createElement("script");
+            n.async = !0;
+            n.type = "text/javascript";
+            n.src = "https://cdn.livechatinc.com/tracking.js";
+            t.head.appendChild(n)
+          }
+        };
+        !n.__lc.asyncInit && e.init(), n.LiveChatWidget = n.LiveChatWidget || e
+      })(window, document, [].slice)
+    </script>
+    <noscript><a href="https://www.livechat.com/chat-with/11778162/" rel="nofollow">Chat with us</a>, powered by <a href="https://www.livechat.com/?welcome" rel="noopener nofollow" target="_blank">LiveChat</a></noscript>
+      <!-- Tambahkan lebih banyak cards sesuai kebutuhan -->
+    </div>
+  </div>
+    <!-- Footer -->
+<div class="footer" style="text-align: center; padding: 20px 0; font-size: 14px; color: #ccc;">
+  © <span id="year"></span> BELEGENDWIN. Semua hak dilindungi.
+</div>
+</body>
+</html>
